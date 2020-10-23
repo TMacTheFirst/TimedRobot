@@ -11,13 +11,17 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.CANTalon;
-import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Solenoid;
+import edu.wpi.first.wpilibj.SpeedControllerGroup;
+
 import static edu.wpi.first.wpilibj.DoubleSolenoid.Value.*;
-import com.revrobotics.CANSparkMax;
+
+import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+
+// import com.revrobotics.CANSparkMax;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.AnalogGyro;
 
@@ -38,16 +42,17 @@ public class Robot extends TimedRobot {
   // Declaration of all the objects for our robot
   public Joystick leftJoystick;
   public Joystick rightJoystick;
-  public CANTalon leftMotor;
-  public CANTalon rightMotor;
+  public WPI_TalonSRX leftMotor;
+  public WPI_TalonSRX rightMotor;
+  public WPI_TalonSRX leftTalon;
   public DifferentialDrive driveTrain;
 
   // A single solenoid that can be set to on or off positions
-  private final Solenoid solenoid;
+  private Solenoid solenoid;
 
   // A double solenoid can be used to control extension and retraction at the same time
   // Can be set to forward, reverse, or off
-  private final DoubleSolenoid doubleSolenoid;
+  private DoubleSolenoid doubleSolenoid;
 
   private static final int kSolenoidButton = 1;
   private static final int kDoubleSolenoidForward = 2;
@@ -58,15 +63,15 @@ public class Robot extends TimedRobot {
   private final double tolerance = 0.1;
   public int autoCase;
   
-  private CANSparkMax shooterSpark;
-
+  // private CANSparkMax shooterSpark;
+  public SpeedControllerGroup leftMotors;
   public Timer autoTimer;
   public AnalogGyro gyro;
 
   // This method needs to be called before any variables are used
   // It should be called in RobotInit
   // It inializes all the objects declared in this file
-  public init() {
+  public void init() {
       // Joystick objects take a port as a paratmeter
       // Port is what USB port they are plugged into your computer
       leftJoystick = new Joystick(0);
@@ -74,9 +79,9 @@ public class Robot extends TimedRobot {
 
       // CANTalon objects take The device ID as a parameter
       // The device ID must be flashed onto each Talon and is unique per device
-      leftMotor = new CANTalon(0);
-      rightMotor = new CANTalon(1);
-
+      leftMotor = new WPI_TalonSRX(0);
+      rightMotor = new WPI_TalonSRX(1);
+      leftMotor
       // DifferentialDrive is a class that gives us access to methods that can be used to drive our Robot
       // It takes speedController objects as parameters and uses them to drive the robot based on user input
       driveTrain = new DifferentialDrive(leftMotor, rightMotor);
@@ -88,16 +93,18 @@ public class Robot extends TimedRobot {
       doubleSolenoid = new DoubleSolenoid(1, 2);
 
       // CANSpark takes the CAN id (assigned when firmware is flashed) and the motor type (Brushless or Brushed)
-      shooterSpark = new CANSparkMax(2, MotorType.kBrushles);
+      // shooterSpark = new CANSparkMax(2, MotorType.kBrushles);
 
       autoTimer = new Timer();
       // AnalogGyro takes the port number it is plugged into
       gyro = new AnalogGyro(0);
-      gyro.setSensitivity(kVoltsPerDegreePerSecond);
+      gyro.setSensitivity(voltsPerDegreePerSecond);
       // The reset method sets the current angle the gyro is at to be 0
       gyro.reset();
 
       autoCase = 0;
+      leftTalon = new WPI_TalonSRX(2);
+      leftMotors = new SpeedControllerGroup(leftMotor, rightMotor);
   }
 
   
@@ -152,15 +159,15 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousPeriodic() {
-    // switch (m_autoSelected) {
-    //   case kCustomAuto:
-    //     // Put custom auto code here
-    //     break;
-    //   case kDefaultAuto:
-    //   default:
-    //     // Put default auto code here
-    //     break;
-    // }
+    switch (m_autoSelected) {
+      case kCustomAuto:
+        // Put custom auto code here
+        break;
+      case kDefaultAuto:
+      default:
+        // Put default auto code here
+        break;
+    }
 
     // if (autoTimer.get() < 3) {
     //   driveForward(0.3);
@@ -184,13 +191,13 @@ public class Robot extends TimedRobot {
       case 0:
         driveForward(0.3);
 
-        if autoTimer.get() >= 3) {
+        if (autoTimer.get() >= 3) {
           autoCase ++;
         }
         break;
 
       case 1:
-        boolean doneTurning = turnUsingGyro(gyro.get(), 45.0, 0.3, 0.3);
+        boolean doneTurning = turnUsingGyro(gyro.getAngle(), 45.0, 0.3, 0.3);
 
         if (doneTurning) {
           autoCase ++;
@@ -291,12 +298,12 @@ public class Robot extends TimedRobot {
   // We can create out own shooter class and move these methods into there for readability
   public void shoot() {
     // Shoot at full speed
-    shooterSpark.set(1.0);
+    // shooterSpark.set(1.0);
   }
 
   public void stopShooter() {
     // Set speed to 0
-    shooterSpark.set(0.0);
+    // shooterSpark.set(0.0);
   }
 
   public void driveForward(double speed) {
@@ -321,19 +328,20 @@ public class Robot extends TimedRobot {
     //destinationAngle is the desired angle to rotate to
     //forwardSpeed and reverseSpeed are variables between 1.0 and -1.0, the larger they are the faster you will turn.
     //    making one the negative of the other will 
-    if ( abs(currentAngle) >= abs(destinationAngle) - tolerance || abs(currentAngle) <= abs(destinationAngle) + tolerance) {
+    if ( Math.abs(currentAngle) >= Math.abs(destinationAngle) - tolerance || Math.abs(currentAngle) <= Math.abs(destinationAngle) + tolerance) {
       //we're there, stop turning
-      drivetrain.tankdrive(0,0)
+      driveTrain.tankDrive(0.0, 0.0);
       return true;
     } else if ( destinationAngle  > currentAngle) {
       //rotate clockwise
-      drivetrain.tankDrive(reverseSpeed, forwardSpeed);
+      driveTrain.tankDrive(reverseSpeed, forwardSpeed);
       return false;
     } else if ( destinationAngle < currentAngle) {
       //rotate counter-clockwise
-      drivetrain.tankDrive(forwardSpeed, reverseSpeed);
+      driveTrain.tankDrive(forwardSpeed, reverseSpeed);
       return false;
     }
+    return false;
   }
 
 }
