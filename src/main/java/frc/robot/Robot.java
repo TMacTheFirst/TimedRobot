@@ -81,7 +81,7 @@ public class Robot extends TimedRobot {
       // The device ID must be flashed onto each Talon and is unique per device
       leftMotor = new WPI_TalonSRX(0);
       rightMotor = new WPI_TalonSRX(1);
-      leftMotor
+
       // DifferentialDrive is a class that gives us access to methods that can be used to drive our Robot
       // It takes speedController objects as parameters and uses them to drive the robot based on user input
       driveTrain = new DifferentialDrive(leftMotor, rightMotor);
